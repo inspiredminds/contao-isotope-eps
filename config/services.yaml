@@ -1,0 +1,12 @@
+services:
+    _defaults:
+        autoconfigure: true
+        autowire: true
+        bind:
+            $contaoErrorLogger: '@monolog.logger.contao.error'
+
+    InspiredMinds\ContaoIsotopeEps\:
+        resource: ../src
+
+    InspiredMinds\ContaoIsotopeEps\EpsHandler:
+        public: true

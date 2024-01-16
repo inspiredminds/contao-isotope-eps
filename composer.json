@@ -1,0 +1,54 @@
+{
+    "name": "inspiredminds/contao-isotope-eps",
+    "description": "Austrian eps payment method for Contao Isotope.",
+    "type": "contao-bundle",
+    "license": "LGPL-3.0-or-later",
+    "homepage": "https://github.com/inspiredminds/contao-isotope-eps",
+    "authors": [
+        {
+            "name": "Fritz Michael Gschwantner",
+            "email": "fmg@inspiredminds.at",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/inspiredminds/contao-isotope-eps/issues",
+        "source": "https://github.com/inspiredminds/contao-isotope-eps",
+        "forum": "https://community.contao.org/de"
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/fritzmg"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "contao/core-bundle": "^4.13 || ^5.0",
+        "hakito/php-stuzza-eps-banktransfer": "^2.0 || ^3.0",
+        "isotope/isotope-core": "^2.0",
+        "symfony/config": "^5.4 || ^6.4",
+        "symfony/dependency-injection": "^5.4 || ^6.4",
+        "symfony/http-kernel": "^5.4 || ^6.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "InspiredMinds\\ContaoIsotopeEps\\": "src/"
+        }
+    },
+    "extra": {
+        "contao-manager-plugin": "InspiredMinds\\ContaoIsotopeEps\\ContaoManager\\Plugin"
+    },
+    "require-dev": {
+        "contao/easy-coding-standard": "^6.0",
+        "contao/rector": "^1.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "contao-components/installer": true,
+            "php-http/discovery": false,
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "contao-community-alliance/composer-plugin": true
+        }
+    }
+}
