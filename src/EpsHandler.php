@@ -14,8 +14,6 @@ use at\externet\eps_bank_transfer\SoCommunicator;
 use at\externet\eps_bank_transfer\TransferInitiatorDetails;
 use at\externet\eps_bank_transfer\TransferMsgDetails;
 use at\externet\eps_bank_transfer\WebshopArticle;
-use Contao\CoreBundle\Exception\RedirectResponseException;
-use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Util\UrlUtil;
 use Contao\StringUtil;
 use Isotope\Interfaces\IsotopePayment;
@@ -23,24 +21,31 @@ use Isotope\Interfaces\IsotopeProductCollection;
 use Isotope\Model\Config;
 use Isotope\Module\Checkout;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
+use const at\externet\eps_bank_transfer\XMLNS_epsp;
 
 class EpsHandler
 {
     public function __construct(
+        private readonly UrlGeneratorInterface $urlGenerator,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $contaoErrorLogger,
     ) {
     }
 
-    public function initiate(IsotopeProductCollection $order, Checkout $module, IsotopePayment $payment, Config|null $config): void
+    public function initiate(IsotopeProductCollection $order, Checkout $module, IsotopePayment $payment, Config|null $config): Response
     {
+        $confirmUrl = $this->urlGenerator->generate('isotope_postsale', ['mod' => 'pay', 'id' => $payment->id], UrlGeneratorInterface::ABSOLUTE_URL);
+        $completeUrl = $this->getAbsoluteUrl($module->generateUrlForStep('complete', $order));
         $failUrl = $this->getAbsoluteUrl($module->generateUrlForStep('failed', $order));
 
         $transferMsgDetails = new TransferMsgDetails(
-            StringUtil::specialcharsAttribute($this->getAbsoluteUrl('/system/modules/isotope/postsale.php?mod=pay&id='.$payment->getId())),
-            StringUtil::specialcharsAttribute($this->getAbsoluteUrl($module->generateUrlForStep('complete', $order))),
+            StringUtil::specialcharsAttribute($confirmUrl),
+            StringUtil::specialcharsAttribute($completeUrl),
             StringUtil::specialcharsAttribute($failUrl),
         );
 
@@ -70,20 +75,19 @@ class EpsHandler
         $soCommunicator = new SoCommunicator((bool) $payment->epsTestMode);
         $plain = $soCommunicator->SendTransferInitiatorDetails($transferInitiatorDetails);
 
-        $dom = new \DOMDocument();
-        $dom->loadXML($plain);
-
-        $errorCode = $dom->getElementsByTagName('ErrorCode')->item(0)?->nodeValue;
-        $errorMsg = $dom->getElementsByTagName('ErrorMsg')->item(0)?->nodeValue;
-        $redirectUrl = $dom->getElementsByTagName('ClientRedirectUrl')->item(0)?->nodeValue;
+        $xml = new \SimpleXMLElement($plain);
+        $soAnswer = $xml->children(XMLNS_epsp);
+        $errorDetails = $soAnswer->BankResponseDetails->ErrorDetails;
+        $errorCode = (string) $errorDetails->ErrorCode;
+        $errorMsg = (string) $errorDetails->ErrorMsg;
 
         if ('000' !== $errorCode) {
-            $this->contaoErrorLogger->error(sprintf('eps payment error #%s: %s', $errorCode, $errorMsg));
+            $this->contaoErrorLogger->error(sprintf('eps payment error for order %s: (%s) %s', $order->getUniqueId(), $errorCode, $errorMsg));
 
-            throw new RedirectResponseException($failUrl);
+            return new RedirectResponse($failUrl);
         }
 
-        throw new RedirectResponseException($redirectUrl);
+        return new RedirectResponse((string) $soAnswer->BankResponseDetails->ClientRedirectUrl);
     }
 
     private function getAbsoluteUrl(string $url): string
