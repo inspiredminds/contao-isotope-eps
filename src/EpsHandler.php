@@ -10,15 +10,21 @@ declare(strict_types=1);
 
 namespace InspiredMinds\ContaoIsotopeEps;
 
+use at\externet\eps_bank_transfer\BankConfirmationDetails;
 use at\externet\eps_bank_transfer\SoCommunicator;
 use at\externet\eps_bank_transfer\TransferInitiatorDetails;
 use at\externet\eps_bank_transfer\TransferMsgDetails;
+use at\externet\eps_bank_transfer\VitalityCheckDetails;
 use at\externet\eps_bank_transfer\WebshopArticle;
 use Contao\CoreBundle\Util\UrlUtil;
 use Contao\StringUtil;
+use InspiredMinds\ContaoIsotopeEps\Isotope\EpsPayment;
+use Isotope\Interfaces\IsotopeOrderableCollection;
 use Isotope\Interfaces\IsotopePayment;
 use Isotope\Interfaces\IsotopeProductCollection;
+use Isotope\Interfaces\IsotopePurchasableCollection;
 use Isotope\Model\Config;
+use Isotope\Model\ProductCollection\Order;
 use Isotope\Module\Checkout;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -90,17 +96,64 @@ class EpsHandler
         return new RedirectResponse((string) $soAnswer->BankResponseDetails->ClientRedirectUrl);
     }
 
-    private function getAbsoluteUrl(string $url): string
-    {
-        return UrlUtil::makeAbsolute($url, $this->getBaseUrl());
-    }
-
-    private function getBaseUrl(): string
+    public function getPostsaleOrder(): IsotopeOrderableCollection|null
     {
         if (!$request = $this->requestStack->getCurrentRequest()) {
-            return '';
+            return null;
         }
 
-        return $request->getSchemeAndHttpHost().$request->getBasePath().'/';
+        $xml = new \SimpleXMLElement($request->getContent());
+        $epspChildren = $xml->children(XMLNS_epsp);
+        $firstChildName = $epspChildren[0]->getName();
+
+        if ('VitalityCheckDetails' === $firstChildName) {
+            $vitalityCheckDetails = new VitalityCheckDetails($xml);
+
+            return Order::findOneByUniqid($vitalityCheckDetails->GetRemittanceIdentifier());
+        }
+
+        if ('BankConfirmationDetails' === $firstChildName) {
+            $bankConfirmationDetails = new BankConfirmationDetails($xml);
+
+            return Order::findOneByUniqid($bankConfirmationDetails->GetRemittanceIdentifier());
+        }
+
+        return null;
+    }
+
+    public function processPostsale(IsotopePurchasableCollection $order, EpsPayment $payment): void
+    {
+        $soCommunicator = new SoCommunicator((bool) $payment->epsTestMode);
+        $soCommunicator->HandleConfirmationUrl(
+            function (string $body, BankConfirmationDetails $bankConfirmationDetails) use ($order, $payment) {
+                if ($order->getUniqueId() !== $bankConfirmationDetails->GetRemittanceIdentifier()) {
+                    throw new \RuntimeException('Remittance identifier does not match unique order ID.');
+                }
+
+                if ('OK' === $bankConfirmationDetails->GetStatusCode() && $order->checkout()) {
+                    $order->date_paid = time();
+                    $order->updateOrderStatus($payment->new_order_status);
+                    $order->save();
+                } else {
+                    $this->contaoErrorLogger->error('eps postsale checkout for order ID '.$order->getUniqueId().' failed');
+                }
+
+                return true;
+            },
+        );
+
+        // The SoCommunicator handles the complete input and output
+        exit;
+    }
+
+    private function getAbsoluteUrl(string $url): string
+    {
+        $baseUrl = '/';
+
+        if ($request = $this->requestStack->getCurrentRequest()) {
+            $baseUrl = $request->getSchemeAndHttpHost().$request->getBasePath().'/';
+        }
+
+        return UrlUtil::makeAbsolute($url, $baseUrl);
     }
 }

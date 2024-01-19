@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace InspiredMinds\ContaoIsotopeEps\Isotope;
 
+use Contao\Database\Result;
 use Contao\Module;
 use Contao\System;
 use InspiredMinds\ContaoIsotopeEps\EpsHandler;
@@ -18,21 +19,27 @@ class EpsPayment extends Postsale implements IsotopePayment
 {
     final public const TYPE = 'eps';
 
+    private readonly EpsHandler $epsHandler;
+
+    public function __construct(Result|null $result = null)
+    {
+        parent::__construct($result);
+
+        $this->epsHandler = System::getContainer()->get(EpsHandler::class);
+    }
+
     public function checkoutForm(IsotopeProductCollection $order, Module $module): Response
     {
-        /** @var EpsHandler $epsHandler */
-        $epsHandler = System::getContainer()->get(EpsHandler::class);
-        
-        return $epsHandler->initiate($order, $module, $this, Isotope::getConfig());
+        return $this->epsHandler->initiate($order, $module, $this, Isotope::getConfig());
     }
 
     public function getPostsaleOrder(): IsotopeOrderableCollection|null
     {
-        return null;
+        return $this->epsHandler->getPostsaleOrder();
     }
 
-    public function processPostsale(IsotopeProductCollection $objOrder): Response|null
+    public function processPostsale(IsotopeProductCollection $objOrder): void
     {
-        return null;
+        $this->epsHandler->processPostsale($objOrder, $this);
     }
 }
