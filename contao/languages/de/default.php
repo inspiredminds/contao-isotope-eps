@@ -10,4 +10,4 @@ declare(strict_types=1);
 
 use InspiredMinds\ContaoIsotopeEps\Isotope\EpsPayment;
 
-$GLOBALS['TL_LANG']['MODEL']['tl_iso_payment'][EpsPayment::TYPE] = ['eps Transfer'];
+$GLOBALS['TL_LANG']['MODEL']['tl_iso_payment'][EpsPayment::TYPE] = ['eps-Überweisung'];
