@@ -59,7 +59,7 @@ class EpsHandler
             $payment->epsSecret,
             $payment->epsBic ?: $config?->bankCode,
             $payment->epsAccountName ?: implode(' ', array_filter([$config?->firstname, $config?->lastname])),
-            $payment->epsIban ?: $config->bankAccount,
+            $payment->epsIban ?: $config?->bankAccount,
             $order->getUniqueId(),
             (int) ($order->getTotal() * 100),
             $transferMsgDetails,
