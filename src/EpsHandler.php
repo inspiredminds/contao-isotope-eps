@@ -16,7 +16,6 @@ use at\externet\eps_bank_transfer\TransferInitiatorDetails;
 use at\externet\eps_bank_transfer\TransferMsgDetails;
 use at\externet\eps_bank_transfer\VitalityCheckDetails;
 use at\externet\eps_bank_transfer\WebshopArticle;
-use Contao\CoreBundle\Util\UrlUtil;
 use Contao\StringUtil;
 use InspiredMinds\ContaoIsotopeEps\Isotope\EpsPayment;
 use Isotope\Interfaces\IsotopeOrderableCollection;
@@ -46,8 +45,8 @@ class EpsHandler
     public function initiate(IsotopeProductCollection $order, Checkout $module, IsotopePayment $payment, Config|null $config): Response
     {
         $confirmUrl = $this->urlGenerator->generate('isotope_postsale', ['mod' => 'pay', 'id' => $payment->id], UrlGeneratorInterface::ABSOLUTE_URL);
-        $completeUrl = $this->getAbsoluteUrl($module->generateUrlForStep('complete', $order));
-        $failUrl = $this->getAbsoluteUrl($module->generateUrlForStep('failed', $order));
+        $completeUrl = $module->generateUrlForStep('complete', $order, absolute: true);
+        $failUrl = $module->generateUrlForStep('failed', $order, absolute: true);
 
         $transferMsgDetails = new TransferMsgDetails(
             StringUtil::specialcharsAttribute($confirmUrl),
@@ -135,7 +134,7 @@ class EpsHandler
                     $order->updateOrderStatus($payment->new_order_status);
                     $order->save();
                 } else {
-                    $this->contaoErrorLogger->error('eps postsale checkout for order ID '.$order->getUniqueId().' failed');
+                    $this->contaoErrorLogger->error(sprintf('eps postsale checkout for order ID '.$order->getUniqueId().' failed (status code %s)', $bankConfirmationDetails->GetStatusCode()));
                 }
 
                 return true;
@@ -144,16 +143,5 @@ class EpsHandler
 
         // The SoCommunicator handles the complete input and output
         exit;
-    }
-
-    private function getAbsoluteUrl(string $url): string
-    {
-        $baseUrl = '/';
-
-        if ($request = $this->requestStack->getCurrentRequest()) {
-            $baseUrl = $request->getSchemeAndHttpHost().$request->getBasePath().'/';
-        }
-
-        return UrlUtil::makeAbsolute($url, $baseUrl);
     }
 }
