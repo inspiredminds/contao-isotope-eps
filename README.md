@@ -15,4 +15,4 @@ The payment method has the following additional settings:
 * **Account name**: Account holder name of the receiving account associated with the eps contract (will be taken from the shop configuration if not specified).
 * **Test mode**: Enables the test mode (note that different credentials are typically needed for the test mode).
 
-The initiated bank transfer will use the unique ID of the Isotope order as the reference number (e.g. 12ab345c67d8e9.12345678).
+The initiated bank transfer will use the unique ID of the Isotope order as the reference number (e.g. `12ab345c67d8e9.12345678`).
