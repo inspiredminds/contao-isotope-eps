@@ -71,7 +71,7 @@ class EpsHandler
 
         foreach ($order->getItems() as $item) {
             $transferInitiatorDetails->WebshopArticles[] = new WebshopArticle(
-                $item->getName(),
+                StringUtil::specialcharsAttribute($item->getName()),
                 $item->quantity,
                 (int) ($item->getPrice() * 100),
             );
